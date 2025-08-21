@@ -18,7 +18,6 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
             background-color: transparent;
             margin: 0;
-            /* Ensure body takes full height */
             height: 100vh;
             width: 100vw;
             overflow: hidden; /* Prevents scrollbars */
@@ -29,32 +28,40 @@
             width: 100%;
             height: 100%;
             background-color: rgba(0, 0, 0, 0.2);
-            padding: 2vmin; /* Use viewport units for responsive padding */
+            padding: 2vmin;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
             -webkit-backdrop-filter: blur(4px);
             backdrop-filter: blur(4px);
-            /* Use flexbox to structure the calculator's inner parts */
             display: flex;
             flex-direction: column;
-            gap: 2vmin; /* Responsive gap between display and buttons */
+            gap: 2vmin;
         }
 
         /* --- Display Screen --- */
         #display {
             background-color: #1F2937;
             color: white;
-            font-size: clamp(2rem, 10vmin, 6rem); /* Responsive font size with min/max */
             font-family: monospace;
             border-radius: 2vmin;
             padding: 2vmin;
             text-align: right;
-            overflow-x: auto;
-            word-break: break-all;
-            /* Flex properties to take up proportional space */
+            overflow: hidden; /* Hide overflow for children */
             flex: 1;
             display: flex;
-            align-items: flex-end;
-            justify-content: flex-end;
+            flex-direction: column; /* Stack equation and result */
+            justify-content: space-between;
+        }
+
+        /* --- New styles for equation and result lines --- */
+        .equation-display {
+            font-size: clamp(1rem, 5vmin, 3rem);
+            color: #9CA3AF; /* Lighter color for the equation */
+            min-height: 1.2em; /* Ensure it has space even when empty */
+            word-break: break-all;
+        }
+        .result-display {
+            font-size: clamp(2rem, 10vmin, 6rem);
+            word-break: break-all;
         }
 
         /* --- Button Grid --- */
@@ -62,7 +69,6 @@
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             gap: 2vmin;
-            /* Flex properties to take up remaining space */
             flex: 4;
         }
 
@@ -70,13 +76,12 @@
         .calc-btn {
             background-color: #ff00ff; /* Magenta color */
             color: white;
-            font-size: clamp(1.5rem, 6vmin, 4rem); /* Responsive font size */
+            font-size: clamp(1.5rem, 6vmin, 4rem);
             border-radius: 2vmin;
             transition: background-color 0.2s ease-in-out, transform 0.1s ease;
             -webkit-tap-highlight-color: transparent;
             border: none;
             cursor: pointer;
-            /* Add flex to center the text inside the button */
             display: flex;
             align-items: center;
             justify-content: center;
@@ -106,106 +111,84 @@
 </head>
 <body>
 
-    <!-- Calculator container -->
     <div class="calculator-container">
+        <!-- Updated Display Structure -->
+        <div id="display">
+            <div class="equation-display" id="equation"></div>
+            <div class="result-display" id="result">0</div>
+        </div>
 
-        <!-- Display Screen -->
-        <div id="display">0</div>
-
-        <!-- Button Grid -->
         <div class="button-grid">
-            <!-- Row 1 -->
             <button class="calc-btn operator-btn" data-value="clear">C</button>
             <button class="calc-btn operator-btn" data-value="/">/</button>
             <button class="calc-btn operator-btn" data-value="*">x</button>
             <button class="calc-btn operator-btn" data-value="-">-</button>
-
-            <!-- Row 2 -->
             <button class="calc-btn" data-value="7">7</button>
             <button class="calc-btn" data-value="8">8</button>
             <button class="calc-btn" data-value="9">9</button>
             <button class="calc-btn operator-btn plus-btn" data-value="+">+</button>
-
-            <!-- Row 3 -->
             <button class="calc-btn" data-value="4">4</button>
             <button class="calc-btn" data-value="5">5</button>
             <button class="calc-btn" data-value="6">6</button>
-            
-            <!-- Row 4 -->
             <button class="calc-btn" data-value="1">1</button>
             <button class="calc-btn" data-value="2">2</button>
             <button class="calc-btn" data-value="3">3</button>
             <button class="calc-btn operator-btn equals-btn" data-value="=">=</button>
-
-            <!-- Row 5 -->
             <button class="calc-btn zero-btn" data-value="0">0</button>
             <button class="calc-btn" data-value=".">.</button>
         </div>
     </div>
 
     <script>
-        // Get references to the display and the button container
-        const display = document.getElementById('display');
+        // Get references to the new display elements
+        const equationDisplay = document.getElementById('equation');
+        const resultDisplay = document.getElementById('result');
         const buttonContainer = document.querySelector('.button-grid');
 
-        // Initialize calculator state variables
+        // Calculator state variables
         let currentInput = '0';
         let previousInput = '';
         let operator = null;
         let shouldResetDisplay = false;
+        let lastInputForEquals = '';
 
         // Function to update the display
         function updateDisplay() {
-            display.textContent = currentInput;
+            resultDisplay.textContent = currentInput;
+            if (operator != null) {
+                equationDisplay.textContent = `${previousInput} ${operator.replace('*', 'x')}`;
+            } else if (!shouldResetDisplay) {
+                equationDisplay.textContent = '';
+            }
         }
 
         // Function to perform calculation
         function calculate() {
             let result;
             const prev = parseFloat(previousInput);
-            const current = parseFloat(currentInput);
+            const current = parseFloat(lastInputForEquals);
 
-            // Check if numbers are valid
             if (isNaN(prev) || isNaN(current)) return;
 
-            // Perform operation based on the operator
             switch (operator) {
-                case '+':
-                    result = prev + current;
-                    break;
-                case '-':
-                    result = prev - current;
-                    break;
-                case '*':
-                    result = prev * current;
-                    break;
+                case '+': result = prev + current; break;
+                case '-': result = prev - current; break;
+                case '*': result = prev * current; break;
                 case '/':
-                    // Handle division by zero
-                    if (current === 0) {
-                        result = 'Error';
-                    } else {
-                        result = prev / current;
-                    }
+                    result = current === 0 ? 'Error' : prev / current;
                     break;
-                default:
-                    return;
+                default: return;
             }
-            // Format the result and limit decimal places for readability
+            
             result = parseFloat(result.toPrecision(12));
             currentInput = result.toString();
-            operator = null;
-            previousInput = '';
         }
 
-        // Add a single event listener to the button container
         buttonContainer.addEventListener('click', (event) => {
             const target = event.target;
-            // Ensure a button was clicked
             if (!target.matches('button')) return;
-
             const value = target.dataset.value;
 
-            // Handle different button types
             if (target.classList.contains('operator-btn')) {
                 handleOperator(value);
             } else {
@@ -214,58 +197,51 @@
             updateDisplay();
         });
 
-        // Function to handle number and decimal inputs
         function handleNumber(value) {
-            if (value === '.') {
-                // Prevent multiple decimal points
-                if (!currentInput.includes('.')) {
-                    currentInput += '.';
-                }
-                return;
+            if (value === '.' && currentInput.includes('.')) return;
+
+            if (shouldResetDisplay) {
+                currentInput = '0';
+                shouldResetDisplay = false;
             }
 
-            // If the display should be reset, or if current input is '0', start fresh
-            if (shouldResetDisplay || currentInput === '0') {
-                currentInput = value;
-                shouldResetDisplay = false;
-            } else {
-                // Prevent excessively long numbers
-                if (currentInput.length > 15) return;
-                currentInput += value;
-            }
+            if (currentInput.length > 15) return;
+            currentInput = currentInput === '0' && value !== '.' ? value : currentInput + value;
         }
 
-        // Function to handle operator inputs
         function handleOperator(value) {
             if (value === 'clear') {
-                // Reset everything
                 currentInput = '0';
                 previousInput = '';
                 operator = null;
+                shouldResetDisplay = false;
+                equationDisplay.textContent = '';
                 return;
             }
 
             if (value === '=') {
-                // Perform calculation if there's a pending operation
-                if (operator && previousInput !== '') {
-                    calculate();
-                    shouldResetDisplay = true;
-                }
+                if (operator === null || previousInput === '') return;
+                lastInputForEquals = currentInput;
+                calculate();
+                equationDisplay.textContent = `${previousInput} ${operator.replace('*', 'x')} ${lastInputForEquals} =`;
+                previousInput = '';
+                operator = null;
+                shouldResetDisplay = true;
                 return;
             }
 
-            // If an operator is already set, calculate the result first
-            if (operator && previousInput !== '' && !shouldResetDisplay) {
+            if (operator !== null && !shouldResetDisplay) {
+                lastInputForEquals = currentInput;
                 calculate();
+                previousInput = currentInput;
+            } else {
+                 previousInput = currentInput;
             }
 
-            // Set up the next operation
-            previousInput = currentInput;
             operator = value;
             shouldResetDisplay = true;
         }
         
-        // Initialize the display on load
         updateDisplay();
     </script>
 </body>
