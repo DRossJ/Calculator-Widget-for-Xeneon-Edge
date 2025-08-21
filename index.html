@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculator Widget</title>
+    <style>
+        /* --- Basic Reset & Font --- */
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+        body {
+            /* Use common system fonts instead of an external one */
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+            background-color: transparent; /* Transparent background for the page */
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* --- Calculator Container --- */
+        .calculator-container {
+            width: 100%;
+            max-width: 24rem; /* 384px */
+            margin-left: auto;
+            margin-right: auto;
+            background-color: rgba(0, 0, 0, 0.2);
+            border-radius: 1rem; /* 16px */
+            padding: 1.5rem; /* 24px */
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            /* Gracefully degrade for older browsers */
+            -webkit-backdrop-filter: blur(4px);
+            backdrop-filter: blur(4px);
+        }
+
+        /* --- Display Screen --- */
+        #display {
+            background-color: #1F2937;
+            color: white;
+            font-size: 3rem;
+            font-family: monospace;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            text-align: right;
+            overflow-x: auto;
+            word-break: break-all;
+        }
+
+        /* --- Button Grid --- */
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 1rem;
+        }
+
+        /* --- General Button Styles --- */
+        .calc-btn {
+            background-color: #ff00ff; /* Magenta color */
+            color: white;
+            font-size: 1.75rem;
+            border-radius: 0.75rem;
+            padding: 1.25rem;
+            transition: background-color 0.2s ease-in-out, transform 0.1s ease;
+            -webkit-tap-highlight-color: transparent;
+            border: none;
+            cursor: pointer;
+        }
+        .calc-btn:hover {
+            background-color: #d900d9;
+        }
+        .calc-btn:active {
+            transform: scale(0.95);
+        }
+        
+        /* --- Specific Button Styles --- */
+        .operator-btn {
+            background-color: #c400c4;
+        }
+        .operator-btn:hover {
+            background-color: #a300a3;
+        }
+        .zero-btn {
+            grid-column: span 2 / span 2;
+        }
+        .plus-btn, .equals-btn {
+            grid-row: span 2 / span 2;
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- Calculator container -->
+    <div class="calculator-container">
+
+        <!-- Display Screen -->
+        <div id="display">0</div>
+
+        <!-- Button Grid -->
+        <div class="button-grid">
+            <!-- Row 1 -->
+            <button class="calc-btn operator-btn" data-value="clear">C</button>
+            <button class="calc-btn operator-btn" data-value="/">/</button>
+            <button class="calc-btn operator-btn" data-value="*">x</button>
+            <button class="calc-btn operator-btn" data-value="-">-</button>
+
+            <!-- Row 2 -->
+            <button class="calc-btn" data-value="7">7</button>
+            <button class="calc-btn" data-value="8">8</button>
+            <button class="calc-btn" data-value="9">9</button>
+            <button class="calc-btn operator-btn plus-btn" data-value="+">+</button>
+
+            <!-- Row 3 -->
+            <button class="calc-btn" data-value="4">4</button>
+            <button class="calc-btn" data-value="5">5</button>
+            <button class="calc-btn" data-value="6">6</button>
+            
+            <!-- Row 4 -->
+            <button class="calc-btn" data-value="1">1</button>
+            <button class="calc-btn" data-value="2">2</button>
+            <button class="calc-btn" data-value="3">3</button>
+            <button class="calc-btn operator-btn equals-btn" data-value="=">=</button>
+
+            <!-- Row 5 -->
+            <button class="calc-btn zero-btn" data-value="0">0</button>
+            <button class="calc-btn" data-value=".">.</button>
+        </div>
+    </div>
+
+    <script>
+        // Get references to the display and the button container
+        const display = document.getElementById('display');
+        const buttonContainer = document.querySelector('.button-grid');
+
+        // Initialize calculator state variables
+        let currentInput = '0';
+        let previousInput = '';
+        let operator = null;
+        let shouldResetDisplay = false;
+
+        // Function to update the display
+        function updateDisplay() {
+            display.textContent = currentInput;
+        }
+
+        // Function to perform calculation
+        function calculate() {
+            let result;
+            const prev = parseFloat(previousInput);
+            const current = parseFloat(currentInput);
+
+            // Check if numbers are valid
+            if (isNaN(prev) || isNaN(current)) return;
+
+            // Perform operation based on the operator
+            switch (operator) {
+                case '+':
+                    result = prev + current;
+                    break;
+                case '-':
+                    result = prev - current;
+                    break;
+                case '*':
+                    result = prev * current;
+                    break;
+                case '/':
+                    // Handle division by zero
+                    if (current === 0) {
+                        result = 'Error';
+                    } else {
+                        result = prev / current;
+                    }
+                    break;
+                default:
+                    return;
+            }
+            // Format the result and limit decimal places for readability
+            result = parseFloat(result.toPrecision(12));
+            currentInput = result.toString();
+            operator = null;
+            previousInput = '';
+        }
+
+        // Add a single event listener to the button container
+        buttonContainer.addEventListener('click', (event) => {
+            const target = event.target;
+            // Ensure a button was clicked
+            if (!target.matches('button')) return;
+
+            const value = target.dataset.value;
+
+            // Handle different button types
+            if (target.classList.contains('operator-btn')) {
+                handleOperator(value);
+            } else {
+                handleNumber(value);
+            }
+            updateDisplay();
+        });
+
+        // Function to handle number and decimal inputs
+        function handleNumber(value) {
+            if (value === '.') {
+                // Prevent multiple decimal points
+                if (!currentInput.includes('.')) {
+                    currentInput += '.';
+                }
+                return;
+            }
+
+            // If the display should be reset, or if current input is '0', start fresh
+            if (shouldResetDisplay || currentInput === '0') {
+                currentInput = value;
+                shouldResetDisplay = false;
+            } else {
+                // Prevent excessively long numbers
+                if (currentInput.length > 15) return;
+                currentInput += value;
+            }
+        }
+
+        // Function to handle operator inputs
+        function handleOperator(value) {
+            if (value === 'clear') {
+                // Reset everything
+                currentInput = '0';
+                previousInput = '';
+                operator = null;
+                return;
+            }
+
+            if (value === '=') {
+                // Perform calculation if there's a pending operation
+                if (operator && previousInput !== '') {
+                    calculate();
+                    shouldResetDisplay = true;
+                }
+                return;
+            }
+
+            // If an operator is already set, calculate the result first
+            if (operator && previousInput !== '' && !shouldResetDisplay) {
+                calculate();
+            }
+
+            // Set up the next operation
+            previousInput = currentInput;
+            operator = value;
+            shouldResetDisplay = true;
+        }
+        
+        // Initialize the display on load
+        updateDisplay();
+    </script>
+</body>
+</html>
